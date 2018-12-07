@@ -5,6 +5,7 @@
 
 
 import os
+import smtplib
 
 
 
@@ -28,7 +29,7 @@ def get_overflow_users(log_dir, home_sizes_filename, quota):
         username = home.split('\t')[-1].split('/')[-1]
         # get usage
         disk_usage = home.split('\t')[0]
-        # Its Gigabyte or not
+        # It is Gigabyte or not
         meter = disk_usage[-1]
         if meter == 'T':
             overflow_users.append(username)
@@ -66,6 +67,18 @@ def is_ignored(ignored_users_filepath, users):
 
 
 
+def current_date():
+    '''
+    returns today
+    '''
+
+    return datetime.datetime.now().strftime("%Y-%m-%d")
+
+
+
+
+
+
 if __name__ == "__main__":
     homes_dir = "/home"
     log_dir = "/var/log/disk_quota"
@@ -75,4 +88,31 @@ if __name__ == "__main__":
     users = get_overflow_users(log_dir, home_sizes_filename, 50)
     ignored_users_filepath = "/etc/ignored_users.txt"
     overflow_users = is_ignored(ignored_users_filepath, users)
+    server = smtplib.SMTP_SSL('host', port)
+    server.ehlo()
+    server.login("user", "pass")
+    for user in overflow_users:
+        source_email = ""
+        target_email = ""
+        msg = "\r\n".join([ 
+        "From: " + source_email,
+        "To: " + target_email,
+        "Subject: HPC Disk Quota",
+        "", 
+        '''
+        Hello %s!
+        \n
+        Your Disk quota is over. Please backup your data and send an email to HPC supports. Otherwise your data will be removed after 3 days.
+        This email is automatically sent, please do not reply.
+        \n
+        Best regards,
+        HPC Administator
+        ''' % (user,)
+        ])
+        server.sendmail(source_email, target_email, msg)
+        print("An email has been sent to " + target_email)
+        #email_log_filename = "emails_sent" + current_date() + ".txt"
+        #os.system("mkdir " + log_dir + "/emails_sent")
+        #os.system("echo An email has been sent to " + target_email + " >> " + log_dir + "/emails_sent/" + email_log_filename)
+
     print(overflow_users)
